@@ -1,0 +1,129 @@
+Imports System.Data.OleDb
+
+Public Class sellado
+
+    Dim lector As OleDbDataReader
+    Dim cad_div As String(), cadlect As String
+    Dim num As Integer = 0
+
+    Private Sub TextBox1_KeyPress(sender As Object, e As KeyPressEventArgs) Handles TextBox1.KeyPress
+        If Asc(e.KeyChar) = 13 Then
+            Consultar()
+        End If
+    End Sub
+
+    Private Sub TextBox2_KeyPress(sender As Object, e As KeyPressEventArgs) Handles TextBox2.KeyPress
+        If Asc(e.KeyChar) = 13 Then
+            Agregar()
+        End If
+    End Sub
+
+    Private Sub Consultar()
+        If Trim(TextBox1.Text) = "" Then
+            MsgBox("Falta número de medidor")
+            TextBox1.Clear()
+        Else
+            Try
+                Form1.cadena.Open()
+                cad_div = TextBox1.Text.Split(" ")
+                Form1.comando = New OleDbCommand("SELECT ca_encontrada, cb_encontrada, ci_encontrada, " &
+                                           "ca_dejada, cb_dejada, ci_dejada FROM calibraciones WHERE medidor = '" &
+                                           cad_div(0) & "' AND fecha = #" & Format(Date.Now.Date, "MM/dd/yyyy") & "#", Form1.cadena)
+                lector = Form1.comando.ExecuteReader
+                If lector.Read() Then
+                    Label11.Text = lector("ca_encontrada").ToString
+                    Label12.Text = lector("cb_encontrada").ToString
+                    Label13.Text = lector("ci_encontrada").ToString
+                    Label14.Text = lector("ca_dejada").ToString
+                    Label15.Text = lector("cb_dejada").ToString
+                    Label16.Text = lector("ci_dejada").ToString
+                    TextBox2.Select()
+                Else
+                    MsgBox("No hay datos")
+                End If
+                Form1.cadena.Close()
+            Catch ex As Exception
+                MsgBox(ex.ToString)
+            End Try
+        End If
+    End Sub
+
+    Private Sub Agregar()
+        If Trim(TextBox1.Text) = "" Or Label11.Text = "" Or Label12.Text = "" Or Label13.Text = "" _
+            Or Label14.Text = "" Or Label15.Text = "" Or Label16.Text = "" Or Trim(TextBox2.Text) = "" Then
+            MsgBox("Datos incompletos")
+        Else
+            num += 1
+            cadlect = num.ToString + vbTab + TextBox1.Text + vbTab + Label11.Text + vbTab + Label12.Text + vbTab _
+                + Label13.Text + vbTab + Label14.Text + vbTab + Label15.Text + vbTab + Label16.Text + TextBox2.Text
+            listasellado.Items.Add(cadlect)
+            Limpiar()
+            TextBox1.Select()
+        End If
+    End Sub
+
+    Private Sub Limpiar()
+        TextBox1.Clear()
+        Label11.Text = String.Empty
+        Label12.Text = String.Empty
+        Label13.Text = String.Empty
+        Label14.Text = String.Empty
+        Label15.Text = String.Empty
+        Label16.Text = String.Empty
+        TextBox2.Clear()
+        TextBox1.Select()
+    End Sub
+
+    Private Sub sellado_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        listasellado.Items.Add("No." + vbTab + "MEDIDOR" + vbTab + "CA ENC." + vbTab + "CB ENC." _
+                               + vbTab + "CI ENC." + vbTab + "CA DEJ." + vbTab + "CB DEJ." + vbTab _
+                               + "CI DEJ." + vbTab + "SELLO")
+    End Sub
+
+    Private Sub Crear()
+        'Nutxt = New TextBox()
+        'With Nutxt
+        '    .Name = "Textbox" & numtext
+        '    .Width = 122
+        '    .Height = 20
+        '    .Text = Nutxt.Name
+        '    .Location = New Point(6, TextBox1.Location.Y + 26 * fila) '26 diferencia entre uno y otro
+        'End With
+        'cajasellado.Controls.Add(Nutxt)
+        'numtext += 1
+        'Nutxt.Select()
+        'AddHandler Nutxt.KeyPress, AddressOf evento2
+
+        'etiquetas = New Label(5) {}
+        'For num = 1 To 6
+        '    nuetiq = New Label()
+        '    With nuetiq
+        '        .Name = "Label" & numeti
+        '        .Width = 82
+        '        .Height = 20
+        '        .Location = New Point(45 + (nuetiq.Width + 25) * num, TextBox1.Location.Y + 26 * fila) '107 es la distancia en x
+        '        .BackColor = Color.White
+        '        .BorderStyle = BorderStyle.Fixed3D
+        '        .Text = nuetiq.Name
+        '    End With
+        '    cajasellado.Controls.Add(nuetiq)
+        '    etiquetas(num - 1) = nuetiq
+        '    numeti += 1
+        'Next
+
+        'Nutxt = New TextBox()
+        'With Nutxt
+        '    .Name = "Textbox" & numtext
+        '    .Width = 122
+        '    .Height = 20
+        '    .Text = Nutxt.Name
+        '    .Location = New Point(nuetiq.Location.X + 107, TextBox1.Location.Y + 26 * fila)
+        'End With
+        'cajasellado.Controls.Add(Nutxt)
+        'numtext += 1
+        'AddHandler Nutxt.KeyPress, AddressOf evento
+
+        'fila += 1
+    End Sub
+
+End Class
