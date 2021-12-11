@@ -1,0 +1,284 @@
+Imports System.Data.OleDb
+
+Public Class Form1
+    Dim recibido As String, datodividido As String(), medidores As String()
+    Dim tipocarga As Byte = 1, contador As Byte = 0, indice As Byte = 0, posicion As SByte = -3, tabulador As Byte = 15, vacios As Byte = 0
+    Dim grupoetiquetas(47) As Label
+    Dim grupotextos(7) As TextBox, cajatexto As TextBox
+    Dim control As Control
+    Public cadena As New OleDbConnection, comando As New OleDbCommand
+
+    Private Sub Form1_Load(sender As System.Object, e As System.EventArgs) Handles MyBase.Load
+
+        cadena.ConnectionString = "Provider=Microsoft.ACE.OLEDB.12.0;Data Source=|DataDirectory|calibraciones.accdb"
+        'sellado.ShowDialog()
+        grupoetiquetas = New Label(47) {}
+
+        For a = 47 To 0 Step -1
+            control = Me.cajacalibraciones.Controls.Item(a)
+            grupoetiquetas(indice) = control
+            indice += 1
+        Next
+
+        grupotextos = New TextBox(7) {}
+        indice = 8
+        For Each caja As Control In cajacalibraciones.Controls
+            If caja.TabIndex = tabulador And tabulador >= 8 Then
+                indice -= 1
+                grupotextos(indice) = caja
+                tabulador -= 1
+            End If
+        Next
+
+    End Sub
+
+    Private Sub Mostrarpuertos_Click(sender As System.Object, e As System.EventArgs) Handles Mostrarpuertos.Click
+        listapuertos.Items.Clear()
+        listapuertos.Items.Add("Seleccione puerto")
+        For Each puerto In My.Computer.Ports.SerialPortNames
+            listapuertos.Items.Add(puerto)
+        Next
+
+        If listapuertos.Items.Count > 1 Then
+            listapuertos.SelectedIndex = 0
+            listapuertos.Enabled = True
+            Abrirpuerto.Enabled = True
+            restablecer.Enabled = True
+        Else
+            MessageBox.Show("No hay puertos disponibles", "Alerta", MessageBoxButtons.OK, MessageBoxIcon.Information)
+        End If
+
+
+    End Sub
+
+    Private Sub Abrirpuerto_Click(sender As System.Object, e As System.EventArgs) Handles Abrirpuerto.Click
+
+        If puertoserial1.IsOpen Then
+            puertoserial1.Close()
+        End If
+
+        If listapuertos.SelectedIndex = 0 Then
+            MessageBox.Show("Seleccione un puerto", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+        Else
+            Try
+                barraprogreso.Visible = True
+                barraprogreso.Value = 1
+                With puertoserial1
+                    .BaudRate = 9600
+                    .DataBits = 8
+                    .Parity = IO.Ports.Parity.None
+                    .StopBits = IO.Ports.StopBits.One
+                    .Handshake = IO.Ports.Handshake.None
+                    .PortName = listapuertos.Text
+                    .Open()
+                    'System.Threading.Thread.Sleep(2000) se puede conectar con la barra de progreso de 1 a 2 o los seg que se requieran
+                    If .IsOpen Then
+                        barraprogreso.Value = 2
+                        MessageBox.Show("Conectado correctamente", "Conexión", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                        barraprogreso.Visible = False
+                        iniciar.Enabled = True
+                        restablecer.Enabled = True
+                        borrar.Enabled = True
+                        cajacalibraciones.Enabled = True
+                        guardar.Visible = True
+                    Else
+                        MessageBox.Show("Conexión fallida", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                    End If
+                End With
+            Catch ex As Exception
+                MessageBox.Show(ex.ToString, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            End Try
+        End If
+
+    End Sub
+
+    Private Sub iniciar_Click(sender As System.Object, e As System.EventArgs) Handles iniciar.Click
+        'evaluar cada carga y terminar a los 8 valores
+
+        Select Case tipocarga
+            Case 1
+                puertoserial1.Write(1)
+            Case 2
+                puertoserial1.Write(2)
+            Case 3
+                puertoserial1.Write(3)
+        End Select
+        iniciar.Enabled = False
+
+    End Sub
+
+    Private Sub puertoserial1_DataReceived(sender As System.Object, e As System.IO.Ports.SerialDataReceivedEventArgs) Handles puertoserial1.DataReceived
+        recibido = puertoserial1.ReadLine
+        Invoke(New EventHandler(AddressOf mostrardato))
+
+    End Sub
+
+    Private Sub mostrardato()
+
+        datodividido = recibido.Split(" ")
+        Select Case datodividido(0)
+            Case "1"
+                procesar(1)
+                procesar(2)
+            Case "2"
+                procesar(1)
+                procesar(2)
+            Case "3"
+                procesar(1)
+                procesar(2)
+        End Select
+        contador += 1
+        If contador = 8 And datodividido(0) = "1" Then
+            iniciar.Enabled = True
+            posicion = -2
+            tipocarga = 2
+            contador = 0
+        ElseIf contador = 8 And datodividido(0) = "2" Then
+            iniciar.Enabled = True
+            posicion = -1
+            tipocarga = 3
+            contador = 0
+        ElseIf contador = 8 And datodividido(0) = "3" Then
+            iniciar.Enabled = True
+            posicion = -3
+            tipocarga = 1
+            contador = 0
+        End If
+
+    End Sub
+
+    Private Sub procesar(pos_dato As Byte)
+
+        posicion += 3
+        grupoetiquetas(posicion).Text = datodividido(pos_dato)
+        If Val(datodividido(pos_dato)) >= 99.5 And Val(datodividido(pos_dato)) <= 100.5 Then
+            grupoetiquetas(posicion).BackColor = Color.FromArgb(0, 200, 0)
+        Else
+            grupoetiquetas(posicion).BackColor = Color.Red
+        End If
+
+    End Sub
+
+    Private Sub restablecer_Click(sender As System.Object, e As System.EventArgs) Handles restablecer.Click
+
+        tipocarga = 1
+        contador = 0
+        posicion = -3
+        listapuertos.Enabled = False
+        listapuertos.Items.Clear()
+        Abrirpuerto.Enabled = False
+        iniciar.Enabled = False
+        restablecer.Enabled = False
+        borrar.Enabled = False
+        limpiar()
+        guardar.Visible = False
+        cajacalibraciones.Enabled = False
+
+    End Sub
+
+    Private Sub borrar_Click(sender As System.Object, e As System.EventArgs) Handles borrar.Click
+        'MsgBox(FormatNumber(Label15.Text, 2)) checar
+        limpiar()
+
+    End Sub
+
+    Private Sub limpiar()
+
+        tipocarga = 1
+        contador = 0
+        posicion = -3
+
+        For a = 0 To 7
+            grupotextos(a).Clear()
+        Next
+
+        For a = 0 To 47
+            grupoetiquetas(a).BackColor = Color.White
+            grupoetiquetas(a).Text = String.Empty
+        Next
+
+    End Sub
+
+    Private Sub guardar_Click(sender As System.Object, e As System.EventArgs) Handles guardar.Click
+
+        Try
+            cadena.Open()
+            indice = 0
+            vacios = validar(cajacalibraciones)
+
+            If vacios = 0 Then
+                For a = 0 To 7
+                    Try
+                        medidores = grupotextos(a).Text.Split(" ")
+                        comando = New OleDbCommand("INSERT INTO medidores(medidor,tipo,lote)" &
+                                                 "VALUES('" & medidores(0) & "','" & medidores(1) & "','" & medidores(2) & "')", cadena)
+                        comando.ExecuteNonQuery()
+                    Catch ex As Exception
+                        MsgBox(ex.ToString)
+                    End Try
+
+                    Try
+                        comando = New OleDbCommand("INSERT INTO calibraciones(medidor,ca_encontrada,cb_encontrada,ci_encontrada,ca_dejada,cb_dejada,ci_dejada,fecha)" &
+                                                   "VALUES('" & medidores(0) & "','" & grupoetiquetas(indice).Text & "','" & grupoetiquetas(indice + 1).Text & "','" &
+                                                   grupoetiquetas(indice + 2).Text & "','" & grupoetiquetas(indice + 3).Text & "','" & grupoetiquetas(indice + 4).Text & "','" &
+                                                   grupoetiquetas(indice + 5).Text & "','" & Date.Now.Date & "')", cadena)
+                        comando.ExecuteNonQuery()
+                        indice += 6
+                    Catch ex As Exception
+                        MsgBox(ex.ToString)
+                    End Try
+                Next
+                MsgBox("datos guardados")
+
+            Else
+                MsgBox("faltan " & vacios & " campos por llenar")
+            End If
+
+            cadena.Close()
+        Catch ex As Exception
+            MsgBox(ex.ToString)
+        End Try
+
+    End Sub
+
+    Private Function validar(caja As Control)
+
+        vacios = 0
+        For Each cajax As Control In caja.Controls
+            If cajax.Text = "" Then
+                vacios += 1
+            End If
+        Next
+        Return vacios
+
+    End Function
+
+    Private Sub sellar_Click(sender As System.Object, e As System.EventArgs) Handles sellar.Click
+        sellado.ShowDialog()
+        'Try
+        '    cadena.Open()
+        '    indice = 8
+        '    vacios = validar(cajasellado)
+        '    If vacios = 0 Then
+        '        For a = 0 To 7
+        '            Try
+        '                medidores = grupotextos(a).Text.Split(" ")
+        '                indice -= 1
+        '                comando = New OleDbCommand("UPDATE medidores SET sello_interior = '" & Me.cajasellado.Controls.Item(indice).Text &
+        '                                           "' WHERE medidor = '" & medidores(0) & "'", cadena)
+        '                comando.ExecuteNonQuery()
+        '            Catch ex As Exception
+        '                MsgBox(ex.ToString)
+        '            End Try
+        '        Next
+        '        MsgBox("actualizado")
+        '        cadena.Close()
+        '    Else
+        '        MsgBox("faltan " & vacios & " campos por llenar")
+        '    End If
+        'Catch ex As Exception
+        '    MsgBox(ex.ToString)
+        'End Try
+
+    End Sub
+End Class
